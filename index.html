@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cat Chaos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0820; --panel:#14113f; --line:#2c2670;
+  --pink:#ff2e88; --cyan:#22e6ff; --lime:#b6ff3c; --txt:#ecebff; --mute:#8f8ccf;
+  --s:0;
+  --display:'Orbitron','Trebuchet MS',Verdana,sans-serif;
+  --body:'Trebuchet MS','Segoe UI',Verdana,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:
+    linear-gradient(rgba(34,230,255,.05) 1px,transparent 1px) 0 0/40px 40px,
+    linear-gradient(90deg,rgba(255,46,136,.05) 1px,transparent 1px) 0 0/40px 40px,
+    radial-gradient(ellipse at 50% 0,#241a6b 0,var(--bg) 60%);
+  color:var(--txt); font-family:var(--body);
+  display:grid; place-items:center; padding:12px; overflow:hidden;
+}
+button,input{font:inherit}
+button:focus-visible,input:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+/* ---------- Jeu ---------- */
+#app{
+  width:min(900px,100%); max-height:100%; overflow:auto;
+  background:rgba(20,17,63,.85); border:2px solid var(--pink); border-radius:18px;
+  box-shadow:0 0 24px rgba(255,46,136,.45),0 0 80px rgba(34,230,255,.15),inset 0 0 30px rgba(255,46,136,.08);
+  padding:16px; display:flex; flex-direction:column; gap:12px;
+}
+body.ent-on #app,body.ent-on #flash{display:none!important}
+.shake{animation:shake .55s linear}
+@keyframes shake{
+  0%,100%{transform:translate(0,0)}
+  15%{transform:translate(calc(var(--s)*-1px),calc(var(--s)*.6px))}
+  30%{transform:translate(calc(var(--s)*1px),calc(var(--s)*-.8px))}
+  45%{transform:translate(calc(var(--s)*-.8px),calc(var(--s)*-1px))}
+  60%{transform:translate(calc(var(--s)*.9px),calc(var(--s)*.7px))}
+  80%{transform:translate(calc(var(--s)*-.4px),calc(var(--s)*.3px))}
+}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+h1{font:900 22px var(--display);margin:0;color:var(--cyan);text-shadow:0 0 12px var(--cyan)}
+.hud{display:flex;gap:8px;flex-wrap:wrap}
+.chip{background:#0d0a2e;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font:600 13px var(--display)}
+.chip b{color:var(--lime)}
+
+#info{
+  min-height:74px; display:grid; place-items:center; text-align:center;
+  background:#0d0a2e; border:1px solid var(--line); border-radius:12px; padding:8px 12px; font-size:16px;
+}
+#info .big{font:900 44px/1 var(--display);color:var(--pink);text-shadow:0 0 16px var(--pink)}
+#info .ok{color:var(--lime)} #info .bad{color:var(--pink)}
+
+#arena{
+  position:relative; height:clamp(200px,34vh,300px); overflow:hidden; cursor:crosshair;
+  border:1px solid var(--line); border-radius:12px;
+  background:radial-gradient(circle at 50% 120%,#2b1d7a 0,#0d0a2e 65%);
+}
+#arena::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,transparent 1px 3px);pointer-events:none}
+#cat{
+  position:absolute; width:64px; height:64px; transform:translate(-50%,-50%);
+  transition:left .28s ease-out,top .28s ease-out; display:grid; place-items:center; font-size:40px;
+  filter:drop-shadow(0 0 10px var(--pink)); animation:bob 2.4s ease-in-out infinite;
+}
+@keyframes bob{50%{margin-top:-6px}}
+#hat{position:absolute;top:-14px;font-size:26px}
+#bubble{
+  position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%) scale(.6); opacity:0;
+  background:#fff; color:#15123a; padding:6px 11px; border-radius:10px; font:700 13px var(--body);
+  white-space:nowrap; max-width:240px; overflow:hidden; text-overflow:ellipsis; pointer-events:none;
+  transition:opacity .15s,transform .15s;
+}
+#bubble.below{bottom:auto;top:calc(100% + 6px)}
+#bubble.show{opacity:1;transform:translateX(-50%) scale(1)}
+
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#msg{flex:1 1 180px;min-width:0;padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:#0d0a2e;color:var(--txt)}
+.btn{padding:11px 16px;border:0;border-radius:10px;font:700 14px var(--body);cursor:pointer;color:#0a0820;transition:transform .08s,box-shadow .2s}
+.btn:active{transform:scale(.95)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.go{background:var(--lime);box-shadow:0 0 14px rgba(182,255,60,.5);font-family:var(--display)}
+.btn.send{background:var(--cyan)}
+.btn.ent{background:var(--pink);color:#fff}
+.btn.ff{background:#ffb02e}
+.chip.dead{opacity:.45;text-decoration:line-through}
+.quick{display:flex;gap:6px;flex-wrap:wrap}
+.q{background:#241f66;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer}
+.q:hover{border-color:var(--cyan)}
+
+details{background:#0d0a2e;border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+summary{cursor:pointer;font:600 13px var(--display)}
+#shop{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.item{background:#241f66;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px}
+.item.on{border-color:var(--lime);box-shadow:0 0 8px rgba(182,255,60,.5)}
+.item small{color:var(--mute)}
+.opt{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:var(--mute)}
+.hint{font-size:11px;color:var(--mute);text-align:center}
+.inp{padding:11px 12px;border-radius:10px;border:1px solid var(--line);background:#0d0a2e;color:var(--txt);min-width:0}
+#feed{white-space:pre-line;min-height:3.4em;font-size:12px;color:var(--mute)}
+
+#flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:50}
+#flash.on{animation:flash .35s ease-out}
+@keyframes flash{from{opacity:.7}to{opacity:0}}
+
+/* ---------- Faux ENT ---------- */
+#ent{position:fixed;inset:0;z-index:99999;background:#fff;color:#222;padding:40px;font-family:Arial,sans-serif;overflow:auto}
+#ent[hidden]{display:none}
+#ent h1{color:#004080;font:700 26px Arial,sans-serif;text-shadow:none}
+#ent button{background:#004080;color:#fff;border:0;border-radius:6px;padding:10px 16px;cursor:pointer}
+
+@media (prefers-reduced-motion:reduce){
+  #cat{animation:none}.shake,#flash.on{animation:none}
+}
+@media (max-width:520px){#info .big{font-size:34px}}
+</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<!-- Faux ENT (Échap pour l'ouvrir, Backspace ou clic pour le fermer) -->
+<div id="ent" hidden>
+  <h1>E.N.T. Hauts-de-France - Espace Élèves</h1>
+  <hr>
+  <p><b>Dernières actualités :</b> Le service de restauration sera fermé ce vendredi.</p>
+  <p>Chargement de votre carnet de correspondance et de vos notes...</p>
+  <br>
+  <button id="ent-back">← Retour (ou touche Backspace)</button>
+</div>
+
+<div id="flash"></div>
+
+<main id="app">
+  <header>
+    <h1>CAT CHAOS</h1>
+    <div class="hud">
+      <span class="chip">🪙 <b id="coins">0</b></span>
+      <span class="chip">Tours <b id="streak">0</b></span>
+      <span class="chip">Victoires <b id="best">0</b></span>
+    </div>
+  </header>
+  <div class="row">
+    <input class="inp" id="name" maxlength="14" placeholder="Ton pseudo" style="width:130px" autocomplete="off">
+    <button class="btn send" id="create">Créer un salon</button>
+    <input class="inp" id="code" maxlength="4" placeholder="Code" style="width:80px" autocomplete="off">
+    <button class="btn send" id="join">Rejoindre</button>
+    <span class="chip" id="roomchip">Solo</span>
+  </div>
+  <div class="quick" id="players"></div>
+
+  <div id="info" aria-live="polite">Crée un salon (2 joueurs minimum), puis lance un tour : le dernier joueur en jeu gagne.</div>
+  <button class="btn go" id="ready" hidden>Prêt !</button>
+
+  <div id="arena" aria-label="Arène : clique ou utilise les flèches pour déplacer ton chat">
+    <div id="cat"><span id="hat"></span><span id="face">🐱</span><div id="bubble"></div></div>
+  </div>
+
+  <div class="row">
+    <input id="msg" type="text" maxlength="40" placeholder="Écris un message (Entrée pour envoyer)" autocomplete="off">
+    <button class="btn send" id="send">Envoyer</button>
+    <button class="btn go" id="go">Lancer un tour</button>
+    <button class="btn ent" id="ent-open" title="Raccourci : Échap">Bouton ENT</button>
+    <button class="btn ff" id="forfeit" hidden>🏳️ Déclarer forfait</button>
+  </div>
+  <div class="quick" id="quick"></div>
+  <div id="feed"></div>
+
+  <details>
+    <summary>Boutique</summary>
+    <div id="shop"></div>
+  </details>
+  <div class="hint">Échap = ENT · Backspace = retour au jeu · Clic dans l'arène ou flèches / ZQSD = déplacer</div>
+</main>
+
+<script>
+"use strict";
+/* Multijoueur : colle ici la config de ton projet Firebase (Realtime Database).
+   Seul databaseURL est indispensable. Voir les étapes dans la réponse du chat. */
+const FIREBASE_CONFIG = {
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",   // ex : "https://catchao-2f143-default-rtdb.europe-west1.firebasedatabase.app/"
+  projectId: "",
+  appId: ""
+};
+const $ = s => document.querySelector(s);
+const rand = n => Math.floor(Math.random() * n);
+
+/* ---------- Sauvegarde (localStorage protégé) ---------- */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("cc_" + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("cc_" + k, JSON.stringify(v)); } catch {} }
+};
+const state = {
+  coins: store.get("coins", 0), wins: store.get("wins", 0), streak: 0,
+  owned: store.get("owned", ["🐱", "none"]), skin: store.get("skin", "🐱"), hat: store.get("hat", "none"),
+  x: 50, y: 60
+};
+const save = () => ["coins", "wins", "owned", "skin", "hat"].forEach(k => store.set(k, state[k]));
+
+/* ---------- Sons : tier 1 = pop, 2 = moyen, 3 = screamer ---------- */
+const M = "https://www.myinstants.com/media/sounds/";
+const SONS = [
+  { t: 1, u: M + "whatsapp-audio.mp3" },   { t: 1, u: M + "quack_1.mp3" },
+  { t: 2, u: M + "vine-boom.mp3" },        { t: 2, u: M + "bruh-sound-effect-2.mp3" },
+  { t: 2, u: M + "aughh_1.mp3" },          { t: 2, u: M + "fart-with-reverb-sound-effect.mp3" },
+  { t: 2, u: M + "metal-pipe-falling.mp3" },{ t: 3, u: M + "mlg-airhorn.mp3" },
+  { t: 3, u: M + "screaming-spongebob.mp3" },{ t: 3, u: M + "alarm_clock.mp3" },
+  { t: 3, u: M + "an-intense-explosion.mp3" }
+];
+
+let ctx = null, current = null;
+function unlockAudio() {           // à appeler depuis un clic : lève le blocage autoplay
+  try {
+    ctx = ctx || new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === "suspended") ctx.resume();
+  } catch {}
+}
+function stopSound() { if (current) { current.stop(); current = null; } }
+
+/* Son de secours généré en direct : le jeu marche même si un lien Myinstants est mort */
+function synth(tier, vol) {
+  if (!ctx) return null;
+  const now = ctx.currentTime, out = ctx.createGain(), nodes = [];
+  out.gain.value = vol; out.connect(ctx.destination);
+  const osc = (type, f0, f1, dur) => {
+    const o = ctx.createOscillator(), e = ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(f0, now); o.frequency.exponentialRampToValueAtTime(f1, now + dur);
+    e.gain.setValueAtTime(.8, now); e.gain.exponentialRampToValueAtTime(.001, now + dur);
+    o.connect(e).connect(out); o.start(now); o.stop(now + dur); nodes.push(o);
+  };
+  if (tier === 1) osc("sine", 700, 160, .15);
+  else if (tier === 2) { osc("sine", 170, 30, .9); osc("square", 90, 25, .5); }
+  else if (Math.random() < .5) { osc("sawtooth", 440, 445, 1.1); osc("sawtooth", 554, 560, 1.1); }
+  else { osc("sawtooth", 800, 2600, 1.2); osc("square", 1000, 2200, 1.2); }
+  return { stop() { nodes.forEach(o => { try { o.stop(); } catch {} }); out.disconnect(); } };
+}
+
+/* Retourne "mp3", "synth" ou "blocked". Ne rejette jamais. */
+function playSound(s, vol) {
+  return new Promise(resolve => {
+    let done = false;
+    const a = new Audio(s.u);
+    a.volume = vol; a.preload = "auto";
+    const kill = () => { a.pause(); a.removeAttribute("src"); a.load(); };
+    const fallback = () => {
+      if (done) return; done = true; kill();
+      current = synth(s.t, vol);
+      resolve(current ? "synth" : "blocked");
+    };
+    current = { stop() { done = true; kill(); } };
+    a.addEventListener("error", fallback, { once: true });
+    setTimeout(() => { if (!done && a.readyState < 3) fallback(); }, 2500);   // lien trop lent
+    a.play().then(() => { if (!done) { done = true; resolve("mp3"); } })
+            .catch(e => { if (e.name === "NotAllowedError") { done = true; resolve("blocked"); } else fallback(); });
+  });
+}
+
+/* ---------- Effets ---------- */
+const app = $("#app"), flash = $("#flash");
+function retrigger(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }
+function shake(px) { app.style.setProperty("--s", px); retrigger(app, "shake"); }
+
+/* ---------- Infos / HUD ---------- */
+const info = $("#info");
+const setInfo = html => { info.innerHTML = html; };
+function renderHud() {
+  $("#coins").textContent = state.coins; $("#streak").textContent = state.streak; $("#best").textContent = state.wins;
+}
+
+/* ---------- Chat ---------- */
+const PRESETS = ["Salut la zone ! 👋", "Je vais perdre 💀", "GG ez 😎", "Euh... le son est à 100% là 🦻", "Qui a flippé ? 😱"];
+const bubble = $("#bubble"); let lastMsg = 0;
+function say(text) {
+  text = String(text).trim().slice(0, 40);
+  if (!text || Date.now() - lastMsg < 600) return;       // anti-spam
+  lastMsg = Date.now();
+  bubble.textContent = text;                              // textContent : pas d'injection HTML
+  bubble.classList.toggle("below", state.y < 30);
+  retrigger(bubble, "show");
+  clearTimeout(bubble._t); bubble._t = setTimeout(() => bubble.classList.remove("show"), 4000);
+}
+PRESETS.forEach(t => {
+  const b = document.createElement("button");
+  b.className = "q"; b.textContent = t; b.addEventListener("click", () => chat(t));
+  $("#quick").appendChild(b);
+});
+$("#send").addEventListener("click", () => { chat($("#msg").value); $("#msg").value = ""; });
+$("#msg").addEventListener("keydown", e => { if (e.key === "Enter") $("#send").click(); });
+
+/* ---------- Déplacement ---------- */
+const cat = $("#cat");
+function place() { cat.style.left = state.x + "%"; cat.style.top = state.y + "%"; }
+const clamp = v => Math.max(10, Math.min(90, v));
+$("#arena").addEventListener("pointerdown", e => {
+  const r = e.currentTarget.getBoundingClientRect();
+  state.x = clamp((e.clientX - r.left) / r.width * 100);
+  state.y = clamp((e.clientY - r.top) / r.height * 100);
+  place();
+});
+
+/* ---------- Boutique ---------- */
+const SKINS = [["🐱", 0], ["😺", 30], ["😼", 60], ["🐯", 120], ["🦁", 200], ["👽", 400]];
+const HATS = [["none", 0, "Aucun"], ["🎩", 40], ["🕶️", 80], ["🎧", 100], ["👑", 150]];
+function renderCat() { $("#face").textContent = state.skin; $("#hat").textContent = state.hat === "none" ? "" : state.hat; }
+function renderShop() {
+  const box = $("#shop"); box.textContent = "";
+  const add = (id, price, label, kind) => {
+    const b = document.createElement("button"), owned = state.owned.includes(id);
+    b.className = "item" + ((kind === "skin" ? state.skin : state.hat) === id ? " on" : "");
+    b.innerHTML = label + (owned ? "" : ` <small>🪙${price}</small>`);
+    b.addEventListener("click", () => {
+      if (!owned) {
+        if (state.coins < price) return say("Pas assez de pièces 🪙");
+        state.coins -= price; state.owned.push(id);
+      }
+      state[kind] = id; save(); renderCat(); renderShop(); renderHud();
+    });
+    box.appendChild(b);
+  };
+  SKINS.forEach(([id, p]) => add(id, p, id, "skin"));
+  HATS.forEach(([id, p, l]) => add(id, p, l || id, "hat"));
+}
+
+/* ---------- Salon multijoueur (Firebase) + battle royale ---------- */
+const esc = s => String(s).replace(/[&<>"']/g, c => "&#" + c.charCodeAt(0) + ";");
+const goBtn = $("#go"), readyBtn = $("#ready"), forfeitBtn = $("#forfeit"), nameInp = $("#name");
+const myName = () => nameInp.value.trim().slice(0, 14) || "Joueur";
+nameInp.value = store.get("name", "Joueur" + (10 + rand(90)));
+nameInp.addEventListener("change", () => store.set("name", myName()));
+let isHost = true, myId = "host", db = null, roomRef = null, unsubs = [];
+let inRoom = false, started = false, gameOn = false;
+let players = [{ id: "host", name: myName(), skin: state.skin, alive: true }];
+let hostTurn = null, localTurn = null, timers = [], ffArmed = false, ffTimer = 0;
+const later = (fn, ms) => timers.push(setTimeout(fn, ms));
+const OUT = { forfeit: "déclare forfait", cheat: "a triché", timeout: "n'a pas cliqué sur Prêt à temps", left: "a quitté le salon" };
+
+const feedLines = [];
+function feed(t) { feedLines.push(t); if (feedLines.length > 3) feedLines.shift(); $("#feed").textContent = feedLines.join("\n"); }
+function renderPlayers() {
+  const box = $("#players"); box.textContent = "";
+  players.forEach(p => {
+    const s = document.createElement("span");
+    s.className = "chip" + (p.alive === false ? " dead" : "");
+    s.textContent = p.skin + " " + p.name + (p.alive === false ? " 💀" : "");
+    box.appendChild(s);
+  });
+}
+function chat(text) {
+  text = String(text).trim().slice(0, 40);
+  if (!text || Date.now() - lastMsg < 600) return;
+  say(text); send({ t: "chat", text });
+}
+
+/* Les invités écrivent dans « up », l'hôte lit, applique les règles et diffuse dans « down » */
+function broadcast(m) { if (inRoom && isHost && roomRef) roomRef.child("down").push(m); handle(m); }
+function send(m) { if (isHost) hostRecv(m, "host"); else if (inRoom && roomRef) roomRef.child("up").push({ ...m, from: myId }); }
+const sendPlayers = () => broadcast({ t: "players", list: players, on: started });
+
+/* ----- Hôte : règles du jeu ----- */
+function hostRecv(m, from) {
+  if (!m || typeof m !== "object") return;
+  const p = players.find(x => x.id === from);
+  if (m.t === "hello") {
+    if (!p) players.push({ id: from, name: String(m.name).slice(0, 14), skin: String(m.skin).slice(0, 4), alive: !started });
+    sendPlayers();
+  } else if (!p) return;
+  else if (m.t === "chat") broadcast({ t: "chat", name: p.name, text: String(m.text).slice(0, 40) });
+  else if (m.t === "forfeit") { if (started) eliminate(from, "forfeit"); }
+  else if (hostTurn && hostTurn.target === from) {
+    if (m.t === "ready") broadcast({ t: "ready", name: p.name, id: from });
+    else if (m.t === "result") {
+      clearTimeout(hostTurn.to); hostTurn = null; goBtn.disabled = false;
+      if (m.res === "cheat") eliminate(from, "cheat");
+      else broadcast({ t: "result", res: String(m.res), vol: m.vol | 0, tier: m.tier | 0, name: p.name, id: from });
+    }
+  }
+}
+
+function eliminate(id, reason) {
+  const p = players.find(x => x.id === id);
+  if (!p || !p.alive) return;
+  p.alive = false;
+  if (hostTurn && hostTurn.target === id) { clearTimeout(hostTurn.to); hostTurn = null; }
+  goBtn.disabled = false;
+  sendPlayers();
+  broadcast({ t: "out", id, name: p.name, reason });
+  checkWin();
+}
+function checkWin() {
+  if (!started) return;
+  const alive = players.filter(p => p.alive);
+  if (alive.length > 1) return;
+  started = false; goBtn.disabled = false;
+  sendPlayers();
+  broadcast({ t: "win", name: alive[0] ? alive[0].name : "Personne", id: alive[0] ? alive[0].id : "" });
+}
+
+/* Tire un joueur encore en vie, un volume et un son */
+function lancer() {
+  if (!isHost || hostTurn || entOn) return;
+  players[0].name = myName(); players[0].skin = state.skin;
+  if (!started) {
+    if (players.length < 2) return setInfo("Il faut au moins 2 joueurs : crée un salon et partage le code.");
+    players.forEach(p => { p.alive = true; });
+    started = true; sendPlayers();
+    broadcast({ t: "start", n: players.length });
+  }
+  const pool = players.filter(p => p.alive), t = pool[rand(pool.length)], vol = rand(101), s = rand(SONS.length);
+  goBtn.disabled = true;
+  hostTurn = { target: t.id, to: setTimeout(() => eliminate(t.id, "timeout"), 60000) };
+  broadcast({ t: "turn", target: t.id, name: t.name, vol, s });
+}
+goBtn.addEventListener("click", lancer);
+
+/* ----- Tous les joueurs : affichage ----- */
+function handle(m) {
+  if (m.t === "players") { players = m.list; gameOn = !!m.on; renderPlayers(); updateForfeit(); }
+  else if (m.t === "chat") feed(m.name + " : " + m.text);
+  else if (m.t === "start") { state.streak = 0; renderHud(); feed("🎮 Partie lancée : " + (m.n | 0) + " joueurs"); }
+  else if (m.t === "turn") {
+    const v = m.vol | 0;
+    if (m.target === myId) {
+      localTurn = { vol: v, s: SONS[m.s] || SONS[0], away: false };
+      setInfo(`🎯 <b>C'est ton tour !</b><div class="big">${v}%</div>Règle ton volume, puis clique sur Prêt`);
+      readyBtn.hidden = false;
+    } else setInfo(`🎯 Tour de <b>${esc(m.name)}</b>...<br>Il règle son volume à ${v}%`);
+  }
+  else if (m.t === "ready") { if (m.id !== myId) setInfo(`⏳ <b>${esc(m.name)}</b> est prêt... le son arrive !`); }
+  else if (m.t === "result") {
+    const n = esc(m.name), v = m.vol | 0, tier = m.tier | 0;
+    if (m.res === "ok") {
+      shake(Math.max(2, tier * v / 100 * 9));
+      if (tier === 3 && v >= 30) retrigger(flash, "on");
+      setInfo(`<span class="ok">${v === 0 ? `🤫 ${n} : volume à 0, silence total. Il survit.` : `💥 <b>${n}</b> a pris un son à ${v}% et survit !`}</span>`);
+    }
+    else if (m.res === "blocked") setInfo(`<span class="bad">🔇 Audio bloqué chez ${n} : tour annulé, relancez.</span>`);
+    else setInfo(`${n} a annulé son tour.`);
+  }
+  else if (m.t === "out") {
+    const k = players.filter(p => p.alive !== false).length;
+    setInfo(`🏳️ <b>${esc(m.name)}</b> ${OUT[m.reason] || "est éliminé"} !` + (gameOn ? `<br>Il reste ${k} joueur${k > 1 ? "s" : ""} en jeu.` : ""));
+    feed(m.name + " " + (OUT[m.reason] || "est éliminé"));
+    if (m.id === myId) { state.streak = 0; renderHud(); cancelLocal(); }
+  }
+  else if (m.t === "win") {
+    setInfo(`<span class="ok">🏆 <b>${esc(m.name)}</b> est le dernier en jeu : victoire !</span>`);
+    if (m.id === myId) { state.wins++; state.coins += 50; save(); renderHud(); renderShop(); }
+  }
+}
+
+/* ----- Joueur tiré au sort : « Prêt » puis 3 s avant le son ----- */
+readyBtn.addEventListener("click", () => {
+  if (!localTurn || localTurn.started) return;
+  localTurn.started = true; readyBtn.hidden = true; unlockAudio();
+  send({ t: "ready" });
+  const step = n => {
+    if (n > 0) { setInfo(`Prêt ! Le son part dans <div class="big">${n}</div>`); later(() => step(n - 1), 1000); }
+    else fire();
+  };
+  step(3);
+});
+
+async function fire() {
+  const lt = localTurn; if (!lt) return;
+  const res = await playSound(lt.s, lt.vol / 100);
+  if (localTurn !== lt) { stopSound(); return; }                 // annulé ou forfait pendant le chargement
+  const away = lt.away || document.hidden || !document.hasFocus();
+  const out = res === "blocked" ? "blocked" : away ? "cheat" : "ok";
+  if (out === "ok") state.streak++;
+  renderHud(); localTurn = null;
+  send({ t: "result", res: out, vol: lt.vol, tier: lt.s.t });
+}
+
+function cancelLocal() { timers.forEach(clearTimeout); timers = []; stopSound(); readyBtn.hidden = true; localTurn = null; }
+function cancelRound() { const had = localTurn; cancelLocal(); if (had) send({ t: "result", res: "cancel" }); }
+
+/* ----- Bouton « Déclarer forfait » : disponible à tout moment, avec confirmation en 2 clics ----- */
+function resetFf() { ffArmed = false; clearTimeout(ffTimer); forfeitBtn.textContent = "🏳️ Déclarer forfait"; }
+function updateForfeit() {
+  const me = players.find(p => p.id === myId);
+  forfeitBtn.hidden = !(inRoom && gameOn && me && me.alive);
+  if (forfeitBtn.hidden) resetFf();
+}
+forfeitBtn.addEventListener("click", () => {
+  if (!ffArmed) { ffArmed = true; forfeitBtn.textContent = "Sûr ? Re-clique"; ffTimer = setTimeout(resetFf, 3000); return; }
+  resetFf(); send({ t: "forfeit" });
+});
+
+/* ----- Salon : création / connexion (Firebase Realtime Database) ----- */
+const chip = t => { $("#roomchip").textContent = t; };
+function getDb() {
+  if (typeof firebase === "undefined") { chip("Firebase bloqué"); return null; }
+  if (!FIREBASE_CONFIG.databaseURL) { chip("Config Firebase manquante"); setInfo("Colle ta config Firebase en haut du script (FIREBASE_CONFIG)."); return null; }
+  try { if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG); return firebase.database(); }
+  catch (e) { chip("Erreur Firebase"); return null; }
+}
+function leave(msg) {
+  unsubs.forEach(f => { try { f(); } catch {} }); unsubs = [];
+  if (roomRef) { try { (isHost ? roomRef : roomRef.child("peers/" + myId)).remove(); } catch {} roomRef = null; }
+  isHost = true; myId = "host"; hostTurn = null;
+  inRoom = false; started = false; gameOn = false; cancelLocal(); resetFf();
+  players = [{ id: "host", name: myName(), skin: state.skin, alive: true }];
+  goBtn.disabled = false; chip("Solo"); renderPlayers(); updateForfeit(); setInfo(esc(msg) + ". Retour en solo.");
+}
+function dropPeer(id) {
+  if (!players.some(p => p.id === id)) return;
+  eliminate(id, "left");
+  players = players.filter(p => p.id !== id);
+  sendPlayers();
+}
+
+$("#create").addEventListener("click", async () => {
+  if (inRoom) return;
+  db = getDb(); if (!db) return;
+  const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  try {
+    let code = null, ref = null;
+    for (let i = 0; i < 6 && !code; i++) {
+      const c = Array.from({ length: 4 }, () => A[rand(A.length)]).join("");
+      ref = db.ref("catchaos/" + c);
+      if (!(await ref.child("hostAlive").get()).exists()) code = c;
+    }
+    if (!code) return chip("Réessaie");
+    await ref.child("hostAlive").set(true);
+    ref.onDisconnect().remove();                       // le salon disparaît si l'hôte part
+    roomRef = ref; isHost = true; myId = "host"; inRoom = true;
+    const up = ref.child("up"), peers = ref.child("peers");
+    up.on("child_added", s => { const v = s.val(); if (v && typeof v === "object") hostRecv(v, String(v.from)); });
+    peers.on("child_removed", s => dropPeer(s.key));
+    unsubs.push(() => up.off(), () => peers.off());
+    players[0].name = myName(); chip("Salon : " + code); renderPlayers();
+    setInfo("Salon créé. Partage le code <b>" + code + "</b>, puis lance un tour à 2 joueurs minimum.");
+  } catch (e) { roomRef = null; chip("Erreur Firebase : " + (e.code || "vérifie les règles")); }
+});
+
+$("#join").addEventListener("click", async () => {
+  if (inRoom) return;
+  const code = $("#code").value.trim().toUpperCase(); if (!code) return;
+  db = getDb(); if (!db) return;
+  try {
+    const ref = db.ref("catchaos/" + code);
+    if (!(await ref.child("hostAlive").get()).exists()) return chip("Salon introuvable");
+    roomRef = ref; isHost = false; inRoom = true; myId = "c" + Math.random().toString(36).slice(2, 8);
+    const me = ref.child("peers/" + myId); await me.set(true); me.onDisconnect().remove();
+    const down = ref.child("down"); let last = null;    // on ignore l'historique, seulement les nouveaux messages
+    (await down.limitToLast(1).get()).forEach(x => { last = x.key; });
+    const q = last ? down.orderByKey().startAt(last) : down.orderByKey();
+    q.on("child_added", s => { if (s.key !== last && s.val()) handle(s.val()); });
+    const alive = ref.child("hostAlive");
+    alive.on("value", s => { if (!s.exists()) leave("Salon fermé"); });
+    unsubs.push(() => q.off(), () => alive.off());
+    goBtn.disabled = true; chip("Salon : " + code);
+    send({ t: "hello", name: myName(), skin: state.skin });
+    setInfo("Connecté ! L'hôte lance les tours.");
+  } catch (e) { leave("Erreur Firebase"); }
+});
+renderPlayers();
+
+/* ---------- Bouton ENT : réponse instantanée ---------- */
+const entEl = $("#ent"), GAME_TITLE = document.title, FAKE_TITLE = "E.N.T. - Espace Élèves";
+let entOn = false;
+function openEnt() {
+  if (entOn) return; entOn = true;
+  document.body.classList.add("ent-on"); entEl.hidden = false;   // cache le jeu dans la même frame
+  document.title = FAKE_TITLE;
+  cancelRound(); stopSound();
+  if (ctx && ctx.state === "running") ctx.suspend();             // coupe tout son en cours
+}
+function closeEnt() {
+  if (!entOn) return; entOn = false;
+  document.body.classList.remove("ent-on"); entEl.hidden = true;
+  document.title = GAME_TITLE; setInfo("De retour ! Clique sur « Lancer un tour ».");
+  if (ctx) ctx.resume();
+}
+$("#ent-open").addEventListener("pointerdown", openEnt);
+$("#ent-back").addEventListener("pointerdown", closeEnt);
+
+/* Phase de capture : le raccourci passe avant tout le reste, même quand on tape dans le tchat */
+window.addEventListener("keydown", e => {
+  if (entOn) {
+    if (e.key === "Backspace" || e.key === "Escape") { e.preventDefault(); closeEnt(); }
+    return;
+  }
+  if (e.key === "Escape") { e.preventDefault(); openEnt(); return; }
+  if (e.target.tagName === "INPUT") return;
+  const k = e.key.toLowerCase(), d = 7;
+  if (k === "arrowleft" || k === "q" || k === "a") state.x = clamp(state.x - d);
+  else if (k === "arrowright" || k === "d") state.x = clamp(state.x + d);
+  else if (k === "arrowup" || k === "z" || k === "w") state.y = clamp(state.y - d);
+  else if (k === "arrowdown" || k === "s") state.y = clamp(state.y + d);
+  else return;
+  e.preventDefault(); place();
+}, true);
+
+/* Si l'onglet passe en arrière-plan pendant ton tour, c'est noté comme triche */
+document.addEventListener("visibilitychange", () => { if (document.hidden && localTurn) localTurn.away = true; });
+
+/* ---------- Init ---------- */
+renderCat(); renderShop(); renderHud(); place();
+</script>
+</body>
+</html>
